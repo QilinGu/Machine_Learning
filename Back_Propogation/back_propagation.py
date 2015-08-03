@@ -57,12 +57,14 @@ class BPNN:
 				2. alpha:权值修正系数
 				3. max_loop:最大迭代次数
 				4. eplison:收敛精度
+				5. theLambda:for regularazation
 	"""
 	def	train(self,options=None):
 		# 初始化训练选项
 		rate = options['rate']
 		max_loop = options['max_loop']
 		eplison = options['eplison']
+		theLambda = options['theLambda']
 		for t in range(max_loop):
 			# delta_W计算权值矩阵梯度偏导数所用的增量
 			delta_W = [0 for num in range(self.K-1)]
@@ -92,9 +94,10 @@ class BPNN:
 					delta_b[k-1] = delta_b[k-1] + d[k]
 			
 			for k in range(self.K-1):
-				self.weights[k] = self.weights[k] - rate*((1.0/self.m)*delta_W[k])
+				self.weights[k] = self.weights[k] - rate*((1.0/self.m)*delta_W[k]+theLambda*self.weights[k])
 				self.b[k] = self.b[k] - rate*(1.0/self.m*delta_b[k])
-			if self.J() < eplison:
+			sys_error = self.J(theLambda)
+			if abs(sys_error) < eplison:
 				break
 		print 'The iteration has done %d times'%t
 
@@ -125,12 +128,15 @@ class BPNN:
 	"""
 	整体代价函数
 	"""
-	def J(self):
+	def J(self,theLambda):
 		result =0.0
 		for i in range(self.m):
 			error = self.h(self.x[i].T) - self.y[:,i]
 			result = result + 1.0/2.0*(np.multiply(error,error)).sum()
-		return 1.0/self.m*result
+		w_sum = 0.0
+		for i in range(len(self.weights)):
+			w_sum = w_sum + np.sum(np.multiply(self.weights[i],self.weights[i]))
+		return 1.0/self.m*result-theLambda/(2.0*self.m)*w_sum
 
 
 if __name__ == '__main__':  
@@ -146,16 +152,29 @@ if __name__ == '__main__':
 	# 定义训练参数
 	options = {
 		'rate':5,
-		'max_loop':10000,
+		'max_loop':2000,
 		'eplison':0.02,
+		'theLambda':0.0
 	}
+	###############################
+	########    训练开始        ####
+	###############################
 	bpnn.train(options)
 	test_b = np.loadtxt("test.txt")
 	test_x = test_b[:,0:4]
+	test_y = test_b[:,4:7]
 	test_x = np.matrix(test_x)
+	test_y = np.matrix(test_y)
+	test_y = test_y.T
 
-	print np.round(bpnn.h(test_x[10].T))
-	print np.round(bpnn.h(test_x[30].T))
-	print np.round(bpnn.h(test_x[40].T))
-	print np.round(bpnn.h(test_x[60].T))
-	print np.round(bpnn.h(test_x[70].T))
+
+	print 'the error of test 1 is:'
+	print abs(bpnn.h(test_x[10].T) - test_y[:,10])
+	print 'the error of test 2 is:'
+	print abs(bpnn.h(test_x[30].T) - test_y[:,30])
+	print 'the error of test 3 is:'
+	print abs(bpnn.h(test_x[40].T) - test_y[:,40])
+	print 'the error of test 4 is:'
+	print abs(bpnn.h(test_x[60].T) - test_y[:,60])
+	print 'the error of test 5 is:'
+	print abs(bpnn.h(test_x[70].T) - test_y[:,70])
